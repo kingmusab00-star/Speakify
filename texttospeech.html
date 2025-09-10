@@ -1,0 +1,199 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speakify - Text to Speech Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Dark gray background */
+        }
+        /* Custom scrollbar for a better look in dark mode */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 20px;
+        }
+        /* Style for range inputs */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #374151;
+            height: 0.5rem;
+            border-radius: 1rem;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -4px;
+            background-color: #3b82f6;
+            height: 1.25rem;
+            width: 1.25rem;
+            border-radius: 50%;
+        }
+        input[type="range"]:focus::-webkit-slider-thumb {
+             outline: 3px solid #60a5fa;
+             outline-offset: 0.125rem;
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+
+    <main class="w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-400">Speakify</h1>
+            <p class="text-gray-400 mt-2">Bring your text to life with natural-sounding voices.</p>
+        </header>
+
+        <!-- Textarea for user input -->
+        <section>
+            <textarea id="text-input" class="w-full h-48 p-4 bg-gray-900 border-2 border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 resize-none" placeholder="Enter text here..."></textarea>
+        </section>
+
+        <!-- Controls for voice, rate, and pitch -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="voice-select" class="block mb-2 text-sm font-medium text-gray-300">Choose a Voice</label>
+                <select id="voice-select" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200">
+                    <option>Loading voices...</option>
+                </select>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="rate" class="text-sm font-medium text-gray-300">Rate</label>
+                        <span id="rate-value" class="text-sm font-semibold bg-gray-700 px-2 py-1 rounded-md">1</span>
+                    </div>
+                    <input type="range" id="rate" min="0.1" max="2" value="1" step="0.1" class="w-full">
+                </div>
+                <div>
+                     <div class="flex justify-between items-center mb-1">
+                        <label for="pitch" class="text-sm font-medium text-gray-300">Pitch</label>
+                        <span id="pitch-value" class="text-sm font-semibold bg-gray-700 px-2 py-1 rounded-md">1</span>
+                    </div>
+                    <input type="range" id="pitch" min="0" max="2" value="1" step="0.1" class="w-full">
+                </div>
+            </div>
+        </section>
+
+        <!-- Action Button -->
+        <section>
+            <button id="speak-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-800 disabled:bg-blue-900 disabled:cursor-not-allowed disabled:text-gray-400">
+                Speak
+            </button>
+        </section>
+        
+    </main>
+
+    <script>
+        // --- DOM Element References ---
+        const textInput = document.getElementById('text-input');
+        const voiceSelect = document.getElementById('voice-select');
+        const rateInput = document.getElementById('rate');
+        const rateValue = document.getElementById('rate-value');
+        const pitchInput = document.getElementById('pitch');
+        const pitchValue = document.getElementById('pitch-value');
+        const speakButton = document.getElementById('speak-button');
+
+        // --- Speech Synthesis API Setup ---
+        const synth = window.speechSynthesis;
+        let voices = [];
+
+        // --- Functions ---
+
+        // Function to populate the voice dropdown list
+        function populateVoiceList() {
+            voices = synth.getVoices();
+            voiceSelect.innerHTML = ''; // Clear current options
+            
+            if(voices.length === 0) {
+                 voiceSelect.innerHTML = '<option>No voices available</option>';
+                 return;
+            }
+
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-lang', voice.lang);
+                option.setAttribute('data-name', voice.name);
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        // Function to handle the text-to-speech conversion
+        function speak() {
+            if (synth.speaking) {
+                console.error('SpeechSynthesis.speaking');
+                return;
+            }
+            if (textInput.value !== '') {
+                const utterance = new SpeechSynthesisUtterance(textInput.value);
+                
+                // Find the selected voice and set it
+                const selectedVoiceName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+                const selectedVoice = voices.find(voice => voice.name === selectedVoiceName);
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
+
+                // Set rate and pitch from the sliders
+                utterance.rate = rateInput.value;
+                utterance.pitch = pitchInput.value;
+
+                // Add event listeners to manage button state
+                utterance.onstart = () => {
+                    speakButton.disabled = true;
+                    speakButton.textContent = 'Speaking...';
+                };
+
+                utterance.onend = () => {
+                    speakButton.disabled = false;
+                    speakButton.textContent = 'Speak';
+                };
+                
+                utterance.onerror = (event) => {
+                    console.error('SpeechSynthesisUtterance.onerror', event);
+                    speakButton.disabled = false;
+                    speakButton.textContent = 'Speak';
+                };
+
+                synth.speak(utterance);
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // The 'voiceschanged' event fires when the list of voices is ready
+        // This is often asynchronous, so we must wait for it.
+        synth.onvoiceschanged = populateVoiceList;
+
+        // Populate voices on first load (for browsers that don't fire the event correctly)
+        populateVoiceList();
+
+        // Update the displayed value when sliders are moved
+        rateInput.addEventListener('input', () => rateValue.textContent = rateInput.value);
+        pitchInput.addEventListener('input', () => pitchValue.textContent = pitchInput.value);
+
+        // Main speak button functionality
+        speakButton.addEventListener('click', speak);
+
+    </script>
+
+</body>
+</html>
+
